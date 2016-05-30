@@ -1,0 +1,422 @@
+<html ng-app="myApp">
+<head>
+	<title>Issue Tracker</title>	
+    <script type="text/javascript" src="../lib/jquery.js"></script>
+    <script type="text/javascript" src="../lib/bootstrap.min.js"></script>
+	<script type="text/javascript" src="../lib/angular.js"></script>
+	<script type="text/javascript" src="../lib/underscore-min.js"></script>
+	<script type="text/javascript" src="../socket.io/socket.io.js"></script>
+
+	<script type="text/javascript" src="../javascripts/main.js"></script>	
+
+	<link href="stylesheets/bootstrap.min.css" rel="stylesheet">
+	<link href="stylesheets/dashboard.css" rel="stylesheet">
+	<link href="stylesheets/signin.css" rel="stylesheet">
+</head>
+<body ng-controller="myCtrl">
+
+<nav class="navbar navbar-default navbar-fixed-top" ng-show="view == 'main' || view == 'users' || view == 'releases' || view == 'sprints'">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="/">Issue Tracker</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li ng-click="view = 'main';getAllIssues();" ng-class="{'active' : view == 'main'}" ><a href="javascript:void(0);">Home</a></li>         
+        <li ng-click="view = 'sprints';getAllSprints();" ng-class="{'active' : view == 'sprints'}" ><a href="javascript:void(0);">Sprints</a></li>
+        <li ng-click="view = 'releases';getAllReleases();" ng-class="{'active' : view == 'releases'}" ><a href="javascript:void(0);">Releases</a></li>
+        <li ng-click="view = 'users';getAllUsers();" ng-class="{'active' : view == 'users'}" ><a href="javascript:void(0);">Users</a></li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">      	
+        <li ng-click="view = 'signin'; issues = []; user = {};"><a href="javascript:void(0);">Logout</a></li>        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<br>
+
+<div class="container-fluid" ng-show="view == 'signin' || view == 'signup'">
+    <form class="form-signin" ng-show="view == 'signin'" ng-submit="signin();">
+        <h2 class="form-signin-heading">Issue Tracker</h2>
+		<div ng-if="authError" class="alert alert-danger" role="alert">
+	      <strong>{{authErrorMsg}}</strong>
+	    </div>        
+        <label for="inputEmail" class="sr-only">Email address</label>
+        <input ng-model="user.email" type="email" id="inputEmail" class="form-control" placeholder="Email address" required autofocus>
+        <label for="inputPassword" class="sr-only">Password</label>
+        <input ng-model="user.password" type="password" id="inputPassword" class="form-control" placeholder="Password" required>
+        <div class="checkbox">
+            <label>
+                <input type="checkbox" value="remember-me"> Remember me
+            </label>
+        </div>
+        <button class="btn btn-lg btn-primary btn-block" type="submit">Sign in</button>
+        <button ng-click="user = {name: '', email: '', password: '', companyTitle: ''}; view = 'signup'; authError = false;" class="btn btn-lg btn-primary btn-block" type="submit">New User? Register Here!</button>
+    </form>
+
+    <form class="form-signin" ng-show="view == 'signup'" ng-submit="register();">
+        <h2 class="form-signin-heading">Issue Tracker</h2>
+        <label for="inputNameC" class="sr-only">Company Name</label>
+        <input ng-model="user.companyTitle" id="inputNameC" class="form-control" placeholder="Company Name" required autofocus>        
+        <label for="inputNameR" class="sr-only">Full Name</label>
+        <input ng-model="user.name" id="inputNameR" class="form-control" placeholder="Full Name" required autofocus>
+        <label for="inputEmailR" class="sr-only">Email address</label>
+        <input ng-model="user.email" type="email" id="inputEmailR" class="form-control" placeholder="Email address" required autofocus>
+        <label for="inputPasswordR" class="sr-only">Password</label>
+        <input ng-model="user.password" type="password" id="inputPasswordR" class="form-control" placeholder="Password" required>
+        <button class="btn btn-lg btn-primary btn-block" type="submit">Register</button>
+        <button ng-click="user = {name: '', email: '', password: '', companyTitle: ''}; view = 'signin';" class="btn btn-lg btn-primary btn-block" type="submit">Sign In</button>
+    </form>	
+</div>	
+
+<div class="container-fluid" ng-show="view == 'main'">
+<div class="row">
+<div class="main">
+	<div class="row">		
+	<form ng-submit="addNewIssue()">        
+        <div class="input-group">		 	              
+	        <div class="input-group-btn">
+	            <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown">{{getStatusNarrative(issue.status)}} <span class="caret"></span></button>
+	            <ul class="dropdown-menu">
+	                <li ng-repeat="row in statuses" ng-click="issue.status = row.code;"><a href="javascript:void(0);">{{row.narrative}}</a></li>
+	            </ul>
+	        </div>	    
+	        <div class="input-group-btn">
+	        </div>    
+	        <div class="input-group-btn">
+	            <button type="button" class="btn btn-danger dropdown-toggle" data-toggle="dropdown">{{getSeverityNarrative(issue.severity)}} <span class="caret"></span></button>
+	            <ul class="dropdown-menu">
+	                <li ng-repeat="row in severities" ng-click="issue.severity = row.code;"><a href="javascript:void(0);">{{row.narrative}}</a></li>
+	            </ul>
+	        </div>	 
+	        <div class="input-group-btn">
+	        </div>    	               
+			<input ng-model="issue.title" type="text" placeholder="Add New Issue" class="form-control" />	
+	        <div class="input-group-btn">
+	        </div>    
+	        <div class="input-group-btn">
+	            <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">{{getUsername(issue.user)}} <span class="caret"></span></button>
+	            <ul class="dropdown-menu">
+	                <li ng-repeat="row in users" ng-click="issue.user = row.email;"><a href="javascript:void(0);">{{row.name}}</a></li>
+	            </ul>
+	        </div>			
+	        <div class="input-group-btn">
+	        </div>    
+	        <div class="input-group-btn">
+	            <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">{{getReleaseTitle(issue.release)}} <span class="caret"></span></button>
+	            <ul class="dropdown-menu">
+	                <li ng-repeat="row in releases" ng-click="issue.release = row._id;"><a href="javascript:void(0);">{{row.title}}</a></li>
+	            </ul>
+	        </div>			
+	        <div class="input-group-btn">
+	        </div>    
+	        <div class="input-group-btn">
+	            <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">{{getSprintTitle(issue.sprint)}} <span class="caret"></span></button>
+	            <ul class="dropdown-menu">
+	                <li ng-repeat="row in sprints" ng-click="issue.sprint = row._id;"><a href="javascript:void(0);">{{row.title}}</a></li>
+	            </ul>
+	        </div>	         
+	        <div class="input-group-btn">
+	        </div>	        
+	        <div class="input-group-btn">
+	            <button type="submit" class="btn btn-primary">Save</button>
+	        </div>	        		
+        </div>        
+	</form>	
+	</div>
+
+	<br>
+
+	<div class="row">
+	<div class="col-sm-3">        
+		<div class="panel panel-info">    		
+            <div class="panel-heading">
+                <h3 class="panel-title">{{getStatusNarrative("st-10")}}</h3>
+            </div>            			
+            <div class="panel-body">
+                <div class="table-responsive">
+					<table class="table">
+						<thead></thead>
+						<tbody>
+							<tr ng-mouseenter="row.hover = true;" ng-mouseleave="row.hover = false;" class="warning" ng-if="row.status == undefined || row.status == 'st-10'" ng-repeat="row in issues | orderBy:'-_id' ">
+								<td class="col-md-2" style="font-size: 65%">{{getSeverityNarrative(row.severity)}}</td>
+								<td class="col-md-8" style="cursor:pointer;" ng-click="openDetailView(row);">{{row.title}}</td>				
+								<td class="col-md-2" style="cursor:pointer;" ng-show="row.hover == true">
+									<span class="glyphicon glyphicon-pencil" ng-click="openDetailView(row);"></span> <br>
+									<span class="glyphicon glyphicon-remove" ng-click="removeIssue(row);"></span>
+								</td>
+								<td class="col-md-2" ng-show="row.hover != true"><span></span><br><span></span></td>												
+							</tr>
+						</tbody>
+					</table>                                    	
+                </div>                            
+            </div>
+		</div>
+	</div>	
+	<div class="col-sm-3">        
+		<div class="panel panel-default">    		
+            <div class="panel-heading">
+                <h3 class="panel-title">{{getStatusNarrative("st-20")}}</h3>
+            </div>            			
+            <div class="panel-body">
+                <div class="table-responsive">
+					<table class="table">
+						<thead></thead>
+						<tbody>
+							<tr  ng-mouseenter="row.hover = true;" ng-mouseleave="row.hover = false;" class="warning" ng-if="row.status == 'st-20'" ng-repeat="row in issues | orderBy:'-_id' ">
+								<td class="col-md-2" style="font-size: 65%">{{getSeverityNarrative(row.severity)}}</td>
+								<td class="col-md-8" style="cursor:pointer;" ng-click="openDetailView(row);">{{row.title}}</td>				
+								<td class="col-md-2" style="cursor:pointer;" ng-show="row.hover == true">
+									<span class="glyphicon glyphicon-pencil" ng-click="openDetailView(row);"></span> <br>
+									<span class="glyphicon glyphicon-remove" ng-click="removeIssue(row);"></span>
+								</td>
+								<td class="col-md-2" ng-show="row.hover != true"><span></span><br><span></span></td>									
+							</tr>
+						</tbody>
+					</table>                                    	
+                </div>                            
+            </div>
+		</div>
+	</div>	
+	<div class="col-sm-3">        
+		<div class="panel panel-danger">    		
+            <div class="panel-heading">
+                <h3 class="panel-title">{{getStatusNarrative("st-30")}}</h3>
+            </div>            			
+            <div class="panel-body">
+                <div class="table-responsive">
+					<table class="table">
+						<thead></thead>
+						<tbody>
+							<tr ng-mouseenter="row.hover = true;" ng-mouseleave="row.hover = false;" class="warning" ng-if="row.status == 'st-30'" ng-repeat="row in issues | orderBy:'-_id' ">
+								<td class="col-md-2" style="font-size: 65%">{{getSeverityNarrative(row.severity)}}</td>
+								<td class="col-md-8" style="cursor:pointer;" ng-click="openDetailView(row);">{{row.title}}</td>				
+								<td class="col-md-2" style="cursor:pointer;" ng-show="row.hover == true">
+									<span class="glyphicon glyphicon-pencil" ng-click="openDetailView(row);"></span> <br>
+									<span class="glyphicon glyphicon-remove" ng-click="removeIssue(row);"></span>
+								</td>
+								<td class="col-md-2" ng-show="row.hover != true"><span></span><br><span></span></td>								
+							</tr>
+						</tbody>
+					</table>                                    	
+                </div>                            
+            </div>
+		</div>
+	</div>	
+	<div class="col-sm-3">        
+		<div class="panel panel-success">    		
+            <div class="panel-heading">
+                <h3 class="panel-title">{{getStatusNarrative("st-40")}}</h3>
+            </div>            			
+            <div class="panel-body">
+                <div class="table-responsive">
+					<table class="table">
+						<thead></thead>
+						<tbody>
+							<tr ng-mouseenter="row.hover = true;" ng-mouseleave="row.hover = false;" class="warning" ng-if="row.status == 'st-40'" ng-repeat="row in issues | orderBy:'-_id' ">
+								<td class="col-md-2" style="font-size: 65%">{{getSeverityNarrative(row.severity)}}</td>
+								<td class="col-md-8" style="cursor:pointer;" ng-click="openDetailView(row);">{{row.title}}</td>				
+								<td class="col-md-2" style="cursor:pointer;" ng-show="row.hover == true">
+									<span class="glyphicon glyphicon-pencil" ng-click="openDetailView(row);"></span> <br>
+									<span class="glyphicon glyphicon-remove" ng-click="removeIssue(row);"></span>
+								</td>
+								<td class="col-md-2" ng-show="row.hover != true"><span></span><br><span></span></td>								
+							</tr>
+						</tbody>
+					</table>                                    	
+                </div>                            
+            </div>
+		</div>
+	</div>	
+	</div>				
+</div>
+</div>		
+</div>	
+
+<div class="container-fluid" ng-show="view == 'users'">
+	<div class="main">
+	<div class="row">
+		<div class="col-sm-12">
+		<form ng-submit="inviteUser();">
+		<div ng-if="showInviteMsg" class="col-sm-11 alert alert-{{inviteMsgClass}}" role="alert">
+      		<strong>{{inviteMsg}}</strong>
+    	</div>			
+		<div class="input-group col-lg-11">									
+    	<input ng-model="userToBeInvited" type="text" class="form-control" placeholder="Enter Email Address Here ..." />
+		<div class="input-group-btn">		  		  
+		  <button type="submit" class="btn btn-success">Invite User!</button>
+		</div>
+		</div>
+		</form>
+		</div>
+	</div>	
+		
+	<div class="row">
+		<div class="col-sm-11">
+		<div class="table-responsive">
+		<table class="table table-striped">
+			<tbody>
+				<tr ng-repeat="row in users" ng-mouseenter="row.hover = true;" ng-mouseleave="row.hover = false;" >					
+					<td class="col-md-5">{{row.name}}</td>				
+					<td class="col-md-6">{{row.email}}</td>
+					<td class="col-md-1" ng-show="row.hover == true && row.email != user.email" ng-click="removeUser(row);"><span class="glyphicon glyphicon-remove"></span></td>
+					<td class="col-md-1" ng-show="row.hover != true || row.email == user.email"><span></span></td>							
+				</tr>
+			</tbody>
+		</table>
+		</div>
+		</div>
+	</div>
+	</div>	
+</div>
+
+
+<div class="container-fluid" ng-show="view == 'releases'">
+	<div class="main">
+	<div class="row">
+		<div class="col-sm-12">
+		<form ng-submit="addNewRelease();">		
+		<div class="input-group col-lg-11">									
+    	<input ng-model="release.title" type="text" class="form-control" placeholder="Enter Title Here ..." />
+		<div class="input-group-btn">		  		  
+		  <button type="submit" class="btn btn-success">Add New Release</button>
+		</div>
+		</div>
+		</form>
+		</div>
+	</div>		
+	
+	<div class="row">
+		<div class="col-sm-11">
+		<div class="table-responsive">
+		<table class="table table-striped">
+			<tbody>
+				<tr ng-repeat="row in releases | orderBy:'_id'" ng-mouseenter="row.hover = true;" ng-mouseleave="row.hover = false;" >					
+					<td class="col-md-11">{{row.title}}</td>									
+					<td class="col-md-1" ng-show="row.hover == true" ng-click="removeRelease(row);"><span class="glyphicon glyphicon-remove"></span></td>
+					<td class="col-md-1" ng-show="row.hover != true"><span></span></td>							
+				</tr>
+			</tbody>
+		</table>
+		</div>
+		</div>
+	</div>
+	</div>	
+</div>
+
+<div class="container-fluid" ng-show="view == 'sprints'">
+	<div class="main">
+	<div class="row">
+		<div class="col-sm-12">
+		<form ng-submit="addNewSprint();">		
+		<div class="input-group col-lg-11">									
+    	<input ng-model="sprint.title" type="text" class="form-control" placeholder="Enter Title Here ..." />
+		<div class="input-group-btn">		  		  
+		  <button type="submit" class="btn btn-success">Add New Sprint</button>
+		</div>
+		</div>
+		</form>
+		</div>
+	</div>	
+		
+	<div class="row">
+		<div class="col-sm-11">
+		<div class="table-responsive">
+		<table class="table table-striped">
+			<tbody>
+				<tr ng-repeat="row in sprints | orderBy:'_id'" ng-mouseenter="row.hover = true;" ng-mouseleave="row.hover = false;" >					
+					<td class="col-md-11">{{row.title}}</td>									
+					<td class="col-md-1" ng-show="row.hover == true" ng-click="removeSprint(row);"><span class="glyphicon glyphicon-remove"></span></td>
+					<td class="col-md-1" ng-show="row.hover != true"><span></span></td>							
+				</tr>
+			</tbody>
+		</table>
+		</div>
+		</div>
+	</div>
+	</div>	
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="myModalLabel">Edit Issue</h4>
+      </div>
+      <div class="modal-body">
+		<form>
+	  	<div class="form-group">    		
+	  		<div class="col-lg-11">
+	  			<input ng-model="selectedIssue.title" type="text" class="form-control"  placeholder="Enter title" autofocus>
+	  		</div>    		
+  		</div>			
+  		<br> <br> <br>			
+		<div class="form-group">
+			<div class="col-lg-5">
+			<label>Responsible</label>
+		    <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">{{getUsername(selectedIssue.user)}} <span class="caret"></span></button>
+		    <ul class="dropdown-menu">
+		        <li ng-repeat="row in users" ng-click="selectedIssue.user = row.email;"><a href="javascript:void(0);">{{row.name}}</a></li>
+		    </ul>		  		
+			</div>		  			  	
+			<div class="col-lg-3">
+		  	<label>Status  </label>
+		    <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">{{getStatusNarrative(selectedIssue.status)}} <span class="caret"></span></button>
+		    <ul class="dropdown-menu">
+		        <li ng-repeat="row in statuses" ng-click="selectedIssue.status = row.code;"><a href="javascript:void(0);">{{row.narrative}}</a></li>
+		    </ul>		  			  		
+			</div>
+			<div class="col-lg-4">
+				<label>Severity </label>
+		    <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">{{getSeverityNarrative(selectedIssue.severity)}} <span class="caret"></span></button>
+		    <ul class="dropdown-menu">
+		        <li ng-repeat="row in severities" ng-click="selectedIssue.severity = row.code;"><a href="javascript:void(0);">{{row.narrative}}</a></li>
+		    </ul>		  		
+			</div>
+		</div>
+  		<br> <br> <br>			
+		<div class="form-group">	  			  	
+			<div class="col-lg-5">
+				<label>Sprint     </label>
+		    <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">{{getSprintTitle(selectedIssue.sprint)}} <span class="caret"></span></button>
+		    <ul class="dropdown-menu">
+		        <li ng-repeat="row in sprints" ng-click="selectedIssue.sprint = row._id;"><a href="javascript:void(0);">{{row.title}}</a></li>
+		    </ul>		  		
+			</div>			
+			<div class="col-lg-7">
+		  	<label>Release </label>
+		    <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">{{getReleaseTitle(selectedIssue.release)}} <span class="caret"></span></button>
+		    <ul class="dropdown-menu">
+		        <li ng-repeat="row in releases" ng-click="selectedIssue.release = row._id;"><a href="javascript:void(0);">{{row.title}}</a></li>
+		    </ul>		  			  		
+			</div>
+		</div>		
+  		<br> <br>
+  	  	<div class="form-group">    		
+	  		<div class="col-lg-11">
+	  			<label>Description  </label>
+	  			<textarea ng-model="selectedIssue.description"  placeholder="Enter description" class="form-control" rows="3"></textarea>
+	  		</div>    		
+  		</div>		
+  		<br> <br> <br>		
+		</form>        		
+  	</div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" ng-click="saveIssue();">Save changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

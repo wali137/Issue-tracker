@@ -1,0 +1,54 @@
+<html>
+<head>
+	<link href="../../stylesheets/bootstrap.min.css" rel="stylesheet">
+	<link href="../../stylesheets/dashboard.css" rel="stylesheet">
+	<link href="../../stylesheets/signin.css" rel="stylesheet">
+	<title>Issue Tracker</title>
+</head>
+<body>
+<div class="container-fluid">
+	<div class="main">
+	<div class="row">
+	    <div class="form-signin" >
+	        <h2 class="form-signin-heading">Issue Tracker</h2>
+	        <label for="inputNameC" class="sr-only">Company Name</label>
+	        <input id="inputNameC" class="form-control" placeholder="Company Name" value="<%= companyTitle %>" disabled="true" required>        
+	        <label for="inputNameR" class="sr-only">Full Name</label>
+	        <input id="inputNameR" class="form-control" placeholder="Full Name" required autofocus>
+	        <label for="inputEmailR" class="sr-only">Email address</label>
+	        <input type="email" id="inputEmailR" value="<%= email %>" class="form-control" placeholder="Email address" disabled="true" required>
+	        <label for="inputPasswordR" class="sr-only">Password</label>
+	        <input type="password" id="inputPasswordR" class="form-control" placeholder="Password" required>
+	        <button class="btn btn-lg btn-primary btn-block" type="submit" onclick="registerUser();">Register</button>	        
+	    </div>	
+	</div>
+	</div>
+</div>	
+
+<script type="text/javascript" src="../../lib/jquery.js"></script>
+<script type="text/javascript">
+	var user = {		
+		email : "<%= email %>",		
+		companyId: "<%= cid %>"
+	};
+	if(user.email == "" || user.companyId == ""){
+		window.location.href = "../../";
+	}
+	function registerUser(){
+		user.password = $("#inputPasswordR").val();
+		user.name = $("#inputNameR").val();
+		if($.trim(user.password).length == 0 || $.trim(user.name).length == 0 || user.email == "" || user.companyId == ""){
+			return;
+		}
+		$.ajax({
+			type: "POST",
+			url: '../../users/registerUser',
+			data: user,
+			success: function(res){			
+			}
+		});
+		window.open("../../?src=invite", "_self");
+	}
+</script>
+</body>
+</html>
